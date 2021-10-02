@@ -17,6 +17,7 @@ library(lubridate)
 library(ggmap)
 library(sf)
 library(leaflet)
+library(patchwork)
 ```
 
 ```{r}
@@ -29,7 +30,7 @@ properati_CABA_alq <- properati_CABA_alq %>%
                       mutate(price=if_else(currency == "ARS", 
                                            round(price/(104.72*1.65),2), price),     
                              currency= "USD") %>%
-                      filter(price>50 & price < 10000)
+                      filter(price>50 & price < 10000 & surface_total>18 &  surface_total < 750)
 ```
 
 ```{r}
@@ -37,7 +38,7 @@ properati_CABA_venta <-  properati_CABA_venta %>%
                          mutate(price=if_else(currency == "ARS",
                                               round(price/(104.72*1.65),2), price), 
                                 currency= "USD") %>%
-                         filter(price>30000 & price < 10000000)
+                         filter(price>30000 & price < 10000000 & surface_total>18 &  surface_total < 750)
 ```
 
 ```{r}
@@ -65,3 +66,49 @@ properati_2021 <- properati_2021 %>%
 properati_2021$comuna <- round(as.numeric(properati_2021$comuna))
 ```
 
+
+```{r}
+properati_2021%>% 
+filter(tipo_operacion== "Venta") %>%
+  ggplot() + 
+  geom_point(aes(x = sup_total, y = precio/1000, color = tipo_propiedad, alpha=0.8)) +
+  theme_minimal() +
+  scale_color_brewer (palette = 1) +
+  theme(plot.title = element_text(face="bold", size=13)) +
+  theme(axis.title.x = element_text(face="bold", vjust=-0.5, colour="#DF536B", size=12)) +
+  theme(axis.title.y = element_text(face="bold", vjust=-0.5, colour="#DF536B", size=12)) + 
+  labs(title = "Superficie y precio en la oferta de inmuebles en venta en CABA", 
+       subtitle = "Precio de los inmuebles en venta según superficie y tipo de propiedad en CABA",
+       x = "Superficie cubierta (m2)",
+       y = "Precio (miles de USD)",
+       caption = "fuente: Properati - año 2021",
+       color ="tipo de propiedad") + 
+  scale_y_continuous(breaks = seq(0, 10000, 1000)) +
+  scale_x_continuous(breaks = seq(0, 650, 50)) +
+  guides(alpha = FALSE) +
+  geom_smooth(aes(x=sup_total, y=precio/1000), method = "lm", colour="dodgerblue4") +
+  facet_wrap(~tipo_operacion)
+```
+
+```{r}
+properati_2021%>% 
+filter(tipo_operacion== "Alquiler") %>%
+  ggplot() + 
+  geom_point(aes(x = sup_total, y = precio/1000, color = tipo_propiedad, alpha=0.8)) +
+  theme_minimal() +
+  scale_color_brewer (palette = 1) +
+  theme(plot.title = element_text(face="bold", size=13)) +
+  theme(axis.title.x = element_text(face="bold", vjust=-0.5, colour="#DF536B", size=12)) +
+  theme(axis.title.y = element_text(face="bold", vjust=-0.5, colour="#DF536B", size=12)) + 
+  labs(title = "Superficie y precio en la oferta de inmuebles en alquiler en CABA", 
+       subtitle = "Precio de los inmuebles en alquiler según superficie y tipo de propiedad en CABA",
+       x = "Superficie cubierta (m2)",
+       y = "Precio (miles de USD)",
+       caption = "fuente: Properati - año 2021",
+       color ="tipo de propiedad") + 
+  scale_y_continuous(breaks = seq(0, 10000, 1000)) +
+  scale_x_continuous(breaks = seq(0, 650, 50)) +
+  guides(alpha = FALSE) +
+  geom_smooth(aes(x=sup_total, y=precio/1000), method = "lm", colour="dodgerblue4") +
+  facet_wrap(~tipo_operacion)
+```
