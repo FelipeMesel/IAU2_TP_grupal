@@ -8,3 +8,60 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+```{r}
+library(tidyverse)
+library(vroom)
+library(janitor)
+library(lubridate)
+library(ggmap)
+library(sf)
+library(leaflet)
+```
+
+```{r}
+properati_CABA_alq <- vroom("data/properati_CABA_alq")
+properati_CABA_venta <- vroom("data/properati_CABA_venta")
+```
+
+```{r}
+properati_CABA_alq <- properati_CABA_alq %>%
+                      mutate(price=if_else(currency == "ARS", 
+                                           round(price/(104.72*1.65),2), price),     
+                             currency= "USD") %>%
+                      filter(price>50 & price < 10000)
+```
+
+```{r}
+properati_CABA_venta <-  properati_CABA_venta %>%
+                         mutate(price=if_else(currency == "ARS",
+                                              round(price/(104.72*1.65),2), price), 
+                                currency= "USD") %>%
+                         filter(price>30000 & price < 10000000)
+```
+
+```{r}
+properati_2021 <- merge.data.frame(properati_CABA_venta, properati_CABA_alq, all=T) %>% 
+                  st_as_sf(coords=c("lon","lat"), crs=4326)
+
+barrios_CABA <- read_sf("data/barrios.geojson")
+properati_2021 <- properati_2021 %>% 
+                  st_join(barrios_CABA) %>% 
+                  mutate(surface_total=if_else(is.na(surface_total),    surface_covered,surface_total))%>% 
+                  filter(!is.na(surface_total))%>% 
+                  mutate(precio_m2=round((price/surface_total),2))%>% 
+                  select(tipo_propiedad = property_type,
+                  tipo_operacion=operation_type,
+                  sup_cubierta=surface_covered,
+                  sup_total=surface_total,
+                  precio=price,
+                  precio_m2,
+                  barrio=BARRIO,
+                  comuna=COMUNA,
+                  geometria=geometry)
+```
+
+```{r}
+properati_2021$comuna <- round(as.numeric(properati_2021$comuna))
+```
+
