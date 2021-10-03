@@ -31,7 +31,7 @@ library(stringr)
 
 # 1. Importación y procesamiento de datos
 
-Nos propusimos trabajar con dos bases de datos de Properati, correspondientes al año 2021 -encontramos datos que van de marzo del 2021 hasta el presente-, relativos a la **oferta de inmuebles en venta y alquiler en la Ciudad de Buenos Aires**, a los fines de analizar la gradiente de precios del suelo en la ciudad.
+Nos propusimos trabajar con dos bases de datos de Properati, correspondientes al año 2021 -encontramos datos que van de enero del 2021 hasta junio-, relativos a la **oferta de inmuebles en venta y alquiler en la Ciudad de Buenos Aires**, a los fines de analizar la gradiente de precios del suelo en la ciudad.
 
 ```{r}
 properati_CABA_alq <- vroom("data/properati_CABA_alq")
@@ -92,7 +92,7 @@ properati_2021 <- properati_2021 %>%
                   geometria=geometry)
 ```
 
-En esta instancia, generamos dos objetos que contiene información agrupada por comunas de oferta de inmuebles. En la primera incorporamos información sobre el tipo de propiedad en venta y alquiler, y de promedio de precio y promedio de precio por metro cuadrado por comuna. En la segunda, hicimos lo mismo pero sin considerar el tipo de propiedad (casa, departamento o PH). 
+En esta instancia, generamos dos objetos que contienen información agrupada por comunas de oferta de inmuebles. En la primera incorporamos información sobre el tipo de propiedad en venta y alquiler, y de promedio de precio y promedio de precio por metro cuadrado por comuna. En la segunda, hicimos lo mismo pero sin considerar el tipo de propiedad (casa, departamento o PH). 
 
 ```{r}
 properati_2021$comuna <- as.factor(round(as.numeric(properati_2021$comuna)))
@@ -299,7 +299,7 @@ ggplot()+
   facet_wrap(~tipo_propiedad)
 ```
 
-En este mapa podemos observar que el precio promedio por metro cuadrado de los departamentos es superior al de los ph, y éste, al de las casas. De esto resulta que para la mayoría de las comunas, el precio promedio del metro cuadrado se encuentra en un nivel diferente de la escala para cada tipo de inmueble. El caso más elocuente, en este sentido, es el de la comuna 1, donde el precio promedio de los departamentos y las casas se encuentran en uno y otro extremo de la escala: vemos que para los primeros, la comuna sigue claramente el nivel de precios del corredor norte de la ciudad, mientras que para las segundas, sigue el del corredor sur. Como ya hemos indicado, pensamos que esto puede deberse a la existencia de zonas altamente degradadas (aquellas lindantes al centro histórico de la ciudad y los principales nodos de transporte) que concentran la mayor proporción de casas y ph de la comuna en contraste con zonas altamente valoradas que ofrecen únicamente departamentos suntuosos. Asimismo, puede observarse que el mapa que más se asemeja en la distribución de los niveles de precios por comuna al mapa que hemos elaborado previamente es el de los departamentos, lo cual da cuenta de que la mayor proporción de inmuebles ofertados es de este tipo. 
+En estos mapas podemos observar que el precio promedio por metro cuadrado de los departamentos es superior al de las casas, y éste, al de los PHs. De esto resulta que para la mayoría de las comunas, el precio promedio del metro cuadrado se encuentra en un nivel diferente de la escala para cada tipo de inmueble. El caso más elocuente, en este sentido, es el de la comuna 1, donde el precio promedio de los departamentos y las casas se encuentran en uno y otro extremo de la escala: vemos que para los primeros, la comuna sigue claramente el nivel de precios del corredor norte de la ciudad, mientras que para las segundas, sigue el del corredor sur. Como ya hemos indicado, pensamos que esto puede deberse a la existencia de zonas altamente degradadas (aquellas lindantes al centro histórico de la ciudad y los principales nodos de transporte) que concentran la mayor proporción de casas y ph de la comuna en contraste con zonas altamente valoradas que ofrecen únicamente departamentos suntuosos. Asimismo, puede observarse que el mapa que más se asemeja en la distribución de los niveles de precios por comuna al mapa que hemos elaborado previamente es el de los departamentos, lo cual da cuenta de que la mayor proporción de inmuebles ofertados es de este tipo. 
 Finalmente, vemos que el metro cuadrado de las casas y los PH en la zona sur están proporcionalmente más baratos que el de los departamentos para las mismas comunas (1, 4, 8, 9, 10 y 7). Esto puede estar explicando cierta tendencia de renovación y encarecimiento de áreas históricamente degradadas, si entendemos que el parque inmobiliario de casas es más antiguo que el de departamentos, y está habiendo cierto proceso de recambio y densificación que implica encarecimiento de los inmuebles (y del metro cuadrado, particularmente) en la zona. 
 
 ## 2.3. Infraestructuras y equipamientos
@@ -397,7 +397,7 @@ establecimientos_educativos <-  establecimientos_educativos %>%
                                       comuna == "1", 
                                       !str_starts( establecimientos_educativos$nivel, "Otros"),
                                       !str_detect( establecimientos_educativos$nivel, "Superior"),
-                                      !str_starts( establecimientos_educativos$nivel, "Nivel Secundario"),
+                                      !str_starts( establecimientos_educativos$nivel, "Nivel Secundario"),                                #nos quedamos sólo con establecimientos de nivel inicial y primario.
                                       sector == 1 ) #nos quedamos con los del sector estatal
                                         
 
@@ -412,6 +412,8 @@ universidades <- read.csv("data/universidades.csv", encoding = "UTF-8") %>%
                  filter(comuna == "Comuna 8" | comuna == "Comuna 14" | comuna == "Comuna 1") 
 
 ```
+
+Para los hospitales, tomamos la cobertura de toda la ciudad. En cambio, para CESAC, universidades y establecimientos educativos públicos decidimos tomar las Comunas 8, 14 y 1, no solo por la cantidad de observaciones, sino porque son aquellas que como vimos en los mapas anteriores, se encuetran en los extremos en el gradiente de precios. Por eso, nos interesa ver si hay una cobertura diferencial de estos equipamientos.
 
 ```{r}
 
@@ -428,8 +430,6 @@ university <- makeAwesomeIcon (text = fa("university"),
                                markerColor = "darkpurple")
 
 ```
-
-Para los hospitales, tomamos la cobertura de toda la ciudad. En cambio, para CESAC, universidades y establecimientos educativos públicos decidimos tomar las Comunas 8, 14 y 1, no solo por la cantidad de observaciones, sino porque son aquellas que como vimos en los mapas anteriores, se encuetran en los extremos en el gradiente de precios. Por eso, nos interesa ver si hay una cobertura diferencial de estos equipamientos.
 
 ```{r}
 leaflet1 <- leaflet() %>%
