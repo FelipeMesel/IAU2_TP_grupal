@@ -42,14 +42,23 @@ properati_CABA_venta <-  properati_CABA_venta %>%
 ```
 
 ```{r}
+barrios_CABA <- read_sf("data/barrios.geojson")
+comunas_CABA <- read_sf("data/CABA_comunas.geojson")
+
+barrios_CABA$COMUNA <- as.factor(round(as.numeric(barrios_CABA$COMUNA)))
+comunas_CABA$COMUNAS <- as.factor(round(as.numeric(comunas_CABA$COMUNAS)))
+```
+
+
+```{r}
 properati_2021 <- merge.data.frame(properati_CABA_venta, properati_CABA_alq, all=T) %>% 
                   st_as_sf(coords=c("lon","lat"), crs=4326)
 
-barrios_CABA <- read_sf("data/barrios.geojson")
 properati_2021 <- properati_2021 %>% 
                   st_join(barrios_CABA) %>% 
                   filter(!is.na(BARRIO)) %>% 
-                  mutate(surface_total=if_else(is.na(surface_total),    surface_covered,surface_total))%>% 
+                  mutate(surface_total=if_else(is.na(surface_total),
+                                               surface_covered,surface_total))%>% 
                   filter(!is.na(surface_total))%>% 
                   mutate(precio_m2=round((price/surface_total),2))%>% 
                   select(tipo_propiedad = property_type,
@@ -87,8 +96,6 @@ filter(tipo_operacion== "Venta") %>%
   scale_x_continuous(breaks = seq(0, 750, 50)) +
   guides(alpha = FALSE) +
   geom_smooth(aes(x=sup_total, y=precio/1000), method = "lm", colour="dodgerblue4")
-
-grafico_1
 ```
 
 ```{r}
@@ -111,8 +118,6 @@ filter(tipo_operacion== "Alquiler") %>%
   scale_x_continuous(breaks = seq(0, 750, 50)) +
   guides(alpha = FALSE) +
   geom_smooth(aes(x=sup_total, y=precio), method = "lm", colour="dodgerblue4")
-
-grafico_2
 ```
 
 ```{r}
@@ -122,17 +127,19 @@ properati_2021_pm_comuna <- properati_2021 %>%
                             summarise(precio_m2=round(mean(precio_m2),2),
                                       precio=round(mean(precio)))
 
-properati_2021_pm_comuna2 <- properati_2021 %>%
-                             st_set_geometry(NULL) %>% 
-                             group_by(comuna, tipo_operacion) %>%
-                             summarise(precio_m2=round(mean(precio_m2),2),
-                                      precio=round(mean(precio)))
+properati_2021_pm_comuna_resumen <- properati_2021 %>%
+                                    st_set_geometry(NULL) %>% 
+                                    group_by(comuna, tipo_operacion) %>%
+                                    summarise(precio_m2=round(mean(precio_m2),2),
+                                    precio=round(mean(precio)))
 ```
 
 ```{r, fig.width=13, fig.height=5}
 grafico_3 <- ggplot() +
-  geom_label(data=properati_2021_pm_comuna2%>% filter(tipo_operacion=="Venta"), 
-             mapping= aes(x=fct_reorder(comuna,desc(precio_m2)), y=precio_m2+500, label=round(precio_m2)))+
+  geom_label(data=properati_2021_pm_comuna_resumen%>%
+             filter(tipo_operacion=="Venta"), 
+             mapping= aes(x=fct_reorder(comuna,desc(precio_m2)), y=precio_m2+500,
+             label=round(precio_m2)))+
   geom_bar(data=properati_2021_pm_comuna%>%
                 filter(tipo_operacion=="Venta"), 
            mapping= aes(x=comuna, y=precio_m2, fill=tipo_propiedad), position="dodge", stat="identity") +
@@ -147,18 +154,17 @@ grafico_3 <- ggplot() +
          y = "Precio promedio (USD) por m2",
          caption = "fuente: Properati - año 2021. En las etiquetas se muestra el precio promedio del m2 para la comuna.",
          fill = "Tipo de Propiedad")
-
-
-grafico_3
 ```
 
 
 ```{r, fig.width=13, fig.height=5}
 grafico_4 <- ggplot() +
-  geom_label(data=properati_2021_pm_comuna2%>% filter(tipo_operacion=="Alquiler"), 
-             mapping= aes(x=fct_reorder(comuna,desc(precio_m2)), y=precio_m2+2, label=precio_m2))+
+  geom_label(data=properati_2021_pm_comuna_resumen%>%
+             filter(tipo_operacion=="Alquiler"), 
+             mapping= aes(x=fct_reorder(comuna,desc(precio_m2)), y=precio_m2+2,
+             label=precio_m2))+
   geom_bar(data=properati_2021_pm_comuna%>%
-                filter(tipo_operacion=="Alquiler"), 
+           filter(tipo_operacion=="Alquiler"), 
            mapping= aes(x=comuna, y=precio_m2, fill=tipo_propiedad), position="dodge", stat="identity") +
     theme_minimal() +
     theme(plot.title = element_text(face="bold", size=15)) +
@@ -171,9 +177,6 @@ grafico_4 <- ggplot() +
          y = "Precio promedio (USD) por m2",
          caption = "fuente: Properati - año 2021. En las etiquetas se muestra el precio promedio del m2 para la comuna.",
          fill = "Tipo de Propiedad")
-
-
-grafico_4
 ```
 
 ```{r, fig.width=10, fig.height=10}
@@ -183,3 +186,72 @@ grafico_4
 ```{r, fig.width=10, fig.height=10}
 (grafico_2 / grafico_4)
 ```
+```{r}
+precios_por_barrio <- properati_2021 %>% 
+                      filter(tipo_operacion=="Venta") %>% 
+                      st_set_geometry(NULL) %>% 
+                      group_by(barrio) %>%
+                      summarise(precio_m2=round(mean(precio_m2),2),
+                      precio=round(mean(precio)))
+
+
+precios_por_barrio <- left_join(barrios_CABA, precios_por_barrio, 
+                                by=c("BARRIO"="barrio"))
+```
+
+```{r}
+ggplot()+
+  geom_sf(data=precios_por_barrio, mapping=aes(fill=precio_m2), color=NA) +
+  geom_sf(data=comunas_CABA, color="white", fill=NA) +
+    labs(title = "Mapa 1. El mapa de los precios de la Ciudad",
+         subtitle = "Precio promedio del m2 por barrio",
+         fill = "Precio promedio (U$D/m2)",
+         caption= "Fuente: Properati 2021") +
+  scale_fill_distiller(palette = "Spectral") +
+  theme_void() + 
+  theme(plot.title = element_text(face="bold", size=15))
+```
+```{r}
+precios_por_comuna_resumen <- comunas_CABA %>% 
+                              left_join(properati_2021_pm_comuna_resumen,
+                              by=c("COMUNAS"="comuna")) %>% 
+                              filter(tipo_operacion=="Venta")
+
+precios_por_comuna <- comunas_CABA %>% 
+                      left_join(properati_2021_pm_comuna,
+                                by=c("COMUNAS"="comuna")) %>% 
+                      filter(tipo_operacion=="Venta")
+```
+
+
+```{r}
+ggplot(data=precios_por_comuna_resumen)+
+  geom_sf(mapping=aes(fill=precio_m2), color="white") +
+  geom_sf_label(mapping=aes(label=precio), fill="grey90", color="grey30", size=2) +
+    labs(title = "Mapa 2. El mapa de los precios de la Ciudad",
+         subtitle = "Precio promedio y precio promedio del m2 por comuna",
+         fill = "Precio promedio (U$D/m2)",
+         caption= "Fuente: Properati 2021") +
+  scale_fill_distiller(palette = "Spectral") +
+  theme_void() + 
+  theme(plot.title = element_text(face="bold", size=15))
+```
+
+
+```{r, fig.width=15, fig.height=7}
+ggplot()+
+  geom_sf(data=precios_por_comuna, mapping=aes(fill=precio_m2), color="white") +
+    labs(title = "Mapa 3. El mapa de los precios de la Ciudad",
+         subtitle = "Precio promedio del m2 por comuna segun tipo de propiedad",
+         fill = "Precio promedio (U$D/m2)",
+         caption= "Fuente: Properati 2021") +
+  scale_fill_distiller(palette = "Spectral") +
+  theme_void() + 
+  theme(plot.title = element_text(face="bold", size=15))+
+  facet_wrap(~tipo_propiedad)
+```
+
+```{r}
+
+```
+
