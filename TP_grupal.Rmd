@@ -20,11 +20,12 @@ library(leaflet)
 library(patchwork)
 ```
 
+# 1. Importación y procesamiento de datos
+
 ```{r}
 properati_CABA_alq <- vroom("data/properati_CABA_alq")
 properati_CABA_venta <- vroom("data/properati_CABA_venta")
 ```
-## 1. Importación y procesamiento de datos.
 
 ```{r}
 properati_CABA_alq <- properati_CABA_alq %>%
@@ -52,7 +53,6 @@ barrios_CABA$COMUNA <- as.factor(round(as.numeric(barrios_CABA$COMUNA)))
 comunas_CABA$COMUNAS <- as.factor(round(as.numeric(comunas_CABA$COMUNAS)))
 ```
 
-
 ```{r}
 properati_2021 <- merge.data.frame(properati_CABA_venta, properati_CABA_alq, all=T) %>% 
                   st_as_sf(coords=c("lon","lat"), crs=4326)
@@ -79,13 +79,28 @@ properati_2021 <- properati_2021 %>%
 properati_2021$comuna <- as.factor(round(as.numeric(properati_2021$comuna)))
 ```
 
+```{r}
+properati_2021_pm_comuna <- properati_2021 %>%
+                            st_set_geometry(NULL) %>% 
+                            group_by(comuna,  tipo_propiedad, tipo_operacion) %>%
+                            summarise(precio_m2=round(mean(precio_m2),2),
+                                      precio=round(mean(precio)))
 
-## 2. Visualizaciones.
+properati_2021_pm_comuna_resumen <- properati_2021 %>%
+                                    st_set_geometry(NULL) %>% 
+                                    group_by(comuna, tipo_operacion) %>%
+                                    summarise(precio_m2=round(mean(precio_m2),2),
+                                    precio=round(mean(precio)))
+```
 
-# 2.1. Oferta de inmuebles en venta y en alquiler.
+# 2. Visualizaciones
 
-En este apartado analizamos la correlación entre precio y superficie en la oferta de inmuebles en venta y en alquiler en la Ciudad de Buenos Aires y el ranking de precios por Comuna según tipo de propiedad. 
-Para ello, utilizaremos como visualización gráficos de distribución con regresión lineal y gráficos de barras.  
+## 2.1. Oferta de inmuebles en venta y en alquiler
+
+En este apartado analizamos la oferta de inmuebles en venta y en alquiler. En particular, la correlación entre precio y superficie en la oferta de inmuebles en venta y en alquiler en la Ciudad de Buenos Aires y las diferencias de precios por Comuna según tipo de propiedad ofrecida. 
+Para ello, comenzaremos por visualizar nuestros datos con  **gráficos de distribución** con regresión lineal, **gráficos de barras** y **mapas de densidad**.  
+
+### i) inmuebles en venta
 
 ```{r}
 grafico_1  <- properati_2021%>% 
@@ -107,42 +122,6 @@ filter(tipo_operacion== "Venta") %>%
   scale_x_continuous(breaks = seq(0, 750, 50)) +
   guides(alpha = FALSE) +
   geom_smooth(aes(x=sup_total, y=precio/1000), method = "lm", colour="dodgerblue4")
-```
-
-```{r}
-grafico_3 <- properati_2021%>% 
-filter(tipo_operacion== "Alquiler") %>%
-  ggplot() + 
-  geom_point(aes(x = sup_total, y = precio, color = tipo_propiedad, alpha=0.8)) +
-  theme_minimal() +
-  scale_color_brewer (palette = 1) +
-  theme(plot.title = element_text(face="bold", size=13)) +
-  theme(axis.title.x = element_text(face="bold", vjust=-0.5, colour="firebrick", size=12)) +
-  theme(axis.title.y = element_text(face="bold", vjust=-0.5, colour="firebrick", size=12)) + 
-  labs(title = "Gráfico 3.Superficie y precio en la oferta de inmuebles en alquiler en CABA", 
-       subtitle = "Precio de los inmuebles en alquiler según superficie y tipo de propiedad en CABA",
-       x = "Superficie cubierta (m2)",
-       y = "Precio (en USD)",
-       caption = "fuente: Properati - año 2021",
-       color ="tipo de propiedad") + 
-  scale_y_continuous(breaks = seq(0, 10000, 1000)) +
-  scale_x_continuous(breaks = seq(0, 750, 50)) +
-  guides(alpha = FALSE) +
-  geom_smooth(aes(x=sup_total, y=precio), method = "lm", colour="dodgerblue4")
-```
-
-```{r}
-properati_2021_pm_comuna <- properati_2021 %>%
-                            st_set_geometry(NULL) %>% 
-                            group_by(comuna,  tipo_propiedad, tipo_operacion) %>%
-                            summarise(precio_m2=round(mean(precio_m2),2),
-                                      precio=round(mean(precio)))
-
-properati_2021_pm_comuna_resumen <- properati_2021 %>%
-                                    st_set_geometry(NULL) %>% 
-                                    group_by(comuna, tipo_operacion) %>%
-                                    summarise(precio_m2=round(mean(precio_m2),2),
-                                    precio=round(mean(precio)))
 ```
 
 ```{r, fig.width=13, fig.height=5}
@@ -167,6 +146,33 @@ grafico_2 <- ggplot() +
          fill = "Tipo de Propiedad")
 ```
 
+```{r, fig.width=10, fig.height=10}
+(grafico_1 / grafico_2)
+```
+
+### ii) inmuebles en alquiler
+
+```{r}
+grafico_3 <- properati_2021%>% 
+filter(tipo_operacion== "Alquiler") %>%
+  ggplot() + 
+  geom_point(aes(x = sup_total, y = precio, color = tipo_propiedad, alpha=0.8)) +
+  theme_minimal() +
+  scale_color_brewer (palette = 1) +
+  theme(plot.title = element_text(face="bold", size=13)) +
+  theme(axis.title.x = element_text(face="bold", vjust=-0.5, colour="firebrick", size=12)) +
+  theme(axis.title.y = element_text(face="bold", vjust=-0.5, colour="firebrick", size=12)) + 
+  labs(title = "Gráfico 3.Superficie y precio en la oferta de inmuebles en alquiler en CABA", 
+       subtitle = "Precio de los inmuebles en alquiler según superficie y tipo de propiedad en CABA",
+       x = "Superficie cubierta (m2)",
+       y = "Precio (en USD)",
+       caption = "fuente: Properati - año 2021",
+       color ="tipo de propiedad") + 
+  scale_y_continuous(breaks = seq(0, 10000, 1000)) +
+  scale_x_continuous(breaks = seq(0, 750, 50)) +
+  guides(alpha = FALSE) +
+  geom_smooth(aes(x=sup_total, y=precio), method = "lm", colour="dodgerblue4")
+```
 
 ```{r, fig.width=13, fig.height=5}
 grafico_4 <- ggplot() +
@@ -191,15 +197,12 @@ grafico_4 <- ggplot() +
 ```
 
 ```{r, fig.width=10, fig.height=10}
-(grafico_1 / grafico_2)
-```
-
-```{r, fig.width=10, fig.height=10}
 (grafico_3 / grafico_4)
 ```
-# 2.2. Mapas de precios.
 
-En este apartado, utilizaremos mapas de calor para ilustrar el precio de la oferta de viviendas en venta por barrio y por comuna, agrupando y resumiendo las observaciones realizadas en el punto anterior. 
+## 2.2. Mapas de precios
+
+En este apartado, utilizaremos mapas de calor para ilustrar la variación de los precios de la oferta de viviendas en venta por barrio y por comuna, agrupando y resumiendo las observaciones trbajadas en el punto anterior. 
 
 ```{r}
 precios_por_barrio <- properati_2021 %>% 
@@ -242,7 +245,6 @@ precios_por_comuna <- comunas_CABA %>%
                       filter(tipo_operacion=="Venta")
 ```
 
-
 ```{r}
 ggplot(data=precios_por_comuna_resumen)+
   geom_sf(mapping=aes(fill=precio_m2), color="white") +
@@ -254,7 +256,6 @@ ggplot(data=precios_por_comuna_resumen)+
   theme_void() + 
   theme(plot.title = element_text(face="bold", size=15))
 ```
-
 
 ```{r, fig.width=15, fig.height=7}
 ggplot()+
@@ -268,11 +269,11 @@ ggplot()+
   facet_wrap(~tipo_propiedad)
 ```
 
-# 2.3. Infraestructuras y equipamientos
+## 2.3. Infraestructuras y equipamientos
 
-Ahora buscaremos encontrar la relación entre el mapa de precios de la ciudad y su cercanía con equipamientos e infraestructuras urbanas.
+Ahora buscaremos encontrar la relación entre el mapa de precios de la ciudad y los equipamientos e infraestructuras urbanas.
 
-# 2.3.a. Accesibilidad.
+### i) Accesibilidad
 
 ```{r}
 CABA <- barrios_CABA %>% 
@@ -289,7 +290,6 @@ recorrido_ferrocarril <- read_sf("data/red-de-ferrocarril.geojson") %>%
 estaciones_ferrocarril <- read_sf("data/estaciones-de-ferrocarril.geojson") %>% 
                                 st_intersection(CABA)
 ```
-
 
 ```{r}
 ggplot() + 
@@ -309,8 +309,7 @@ ggplot() +
 ```
 Con el recorrido del subte, vemos que existe una correlación entre la conectividad que brinda el servicio y el precio de los inmuebles en las comunas. Sin embargo, cuando vemos el metrobus y el ferrocarril (que son medios de transporte cuya efectividad suele ser peor) la conectividad es más amplia.
 
-
-# 2.3.b. Equipamiento de salud y educación.
+### ii) Equipamiento de salud y educación
 
 ```{r}
 #AGREGAR BARRIO EN HOSPITALES Y FILTRAR TODO POR PUERTO MADERO Y LUGANO
