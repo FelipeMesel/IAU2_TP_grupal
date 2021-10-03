@@ -38,7 +38,7 @@ properati_CABA_alq <- vroom("data/properati_CABA_alq")
 properati_CABA_venta <- vroom("data/properati_CABA_venta")
 ```
 
-Habiendo cargado las bases de alquileres y venta, estamos en condiciones de procesar los datos, para lo cual tomamos un conjunto de decisiones. En primer lugar, trasladamos a dólares todas las ofertas de alquileres que se encontraban en pesos, y las pocas de venta que también estaban en pesos, considerando para ello el precio del dólar oficial con los impuestos que se le incorporan. Asimismo, teniendo en cuenta que en la base habían outliers que muy probablemente obedecen a que los datos no fueron correctamente cargados, y que por tanto ensuciaban las bases, decidimos tomar un rango de precios y superficie total que entendimos verosímil. 
+Habiendo cargado las bases de alquileres y venta, estamos en condiciones de procesar los datos, para lo cual tomamos un conjunto de decisiones. En primer lugar, trasladamos a dólares todas las ofertas de alquileres y algunas pocas de venta que se encontraban en pesos, considerando para ello el precio del dólar oficial con los impuestos incorporporados a las transacciones de compra de divisas o bienes y servicios en moneda extranjera. Asimismo, teniendo en cuenta que en la base había outliers muy extremos que la ensuciaban, y que muy probablemente obedeccían a errores en la carga de datos, decidimos tomar un rango de precios y superficie total que entendimos verosímil. 
 
 ```{r}
 properati_CABA_alq <- properati_CABA_alq %>%
@@ -58,7 +58,7 @@ properati_CABA_venta <-  properati_CABA_venta %>%
                                 surface_total>18 &  surface_total < 750)
 ```
 
-Cargamos la base de datos de barrios de la Ciudad, proveniente de BA Data, e inspeccionándola pudimos ver que las comunas estaban escritas con decimales por lo que limpiamos la columna:
+Luego, cargamos la base de datos de barrios de la Ciudad, proveniente de BA Data, e inspeccionándola pudimos ver que las observaciones correspondientes a la variable "Comuna" eran de tipo caracter y poseían varios decimales, por lo que limpiamos esas columnas:
 
 ```{r}
 barrios_CABA <- read_sf("data/barrios.geojson")
@@ -68,7 +68,7 @@ barrios_CABA$COMUNA <- as.factor(round(as.numeric(barrios_CABA$COMUNA)))
 comunas_CABA$COMUNAS <- as.factor(round(as.numeric(comunas_CABA$COMUNAS)))
 ```
 
-Ahora juntamos los data frame de "venta" y "alquileres" que trabajamos y, a partir de que ambos contaban con información de latitud y longitud, pudimos convertirlo en un objeto espacial. Luego juntamos la base de properati elaborada con la de barrios a través de la función st_join (dado que ambos son objetos espaciales), limpiando la base para que no queden observaciones sin barrio ni información vacía respecto de la superficie total que es la que consideraremos de ahora en más. Para ello, para aquellas observaciones de superficie total en las cuales vimos que no había información pero sí había información respecto de la superficie cubierta, decidimos que la columna de "superficie total" se trajera el dato de la columna de "superficie cubierta". En caso de que falte el dato en ambas columnas, retiramos la observación. Luego, hicimos una columna con el precio por metro cuadrado en dólares, dividiendo las columnas de precio y superficie total, y elegimos quedarnos solamente con las columnas que vamos a utilizar.
+Seguidamente, unimos los data frames de "venta" y "alquileres" que trabajamos y, a partir de que ambos contaban con información de latitud y longitud, pudimos convertir el nuevo data frame en un objeto espacial. Luego, juntamos la base consolidada de properati con ambos tipos de operaciones con la de barrios a través de sus geometrías (dado que ambos son objetos espaciales), limpiando la base para que no queden observaciones sin barrio ni información vacía respecto de la superficie total, que es la que consideraremos de ahora en más. Para ello, para aquellas observaciones de superficie total en las cuales vimos que no había información pero sí había información respecto de la superficie cubierta, decidimos que la columna de "superficie total" se trajera el dato de la columna de "superficie cubierta". En caso de que falte el dato en ambas columnas, retiramos la observación. Finalmente, agregamos una columna con el precio por metro cuadrado en dólares, dividiendo las columnas de precio y superficie total, y elegimos quedarnos solamente con las columnas que vamos a utilizar.
 
 ```{r}
 properati_2021 <- merge.data.frame(properati_CABA_venta, properati_CABA_alq, all=T) %>% 
@@ -92,7 +92,7 @@ properati_2021 <- properati_2021 %>%
                   geometria=geometry)
 ```
 
-En esta instancia, generamos dos objetos que contienen información agrupada por comunas de oferta de inmuebles. En la primera incorporamos información sobre el tipo de propiedad en venta y alquiler, y de promedio de precio y promedio de precio por metro cuadrado por comuna. En la segunda, hicimos lo mismo pero sin considerar el tipo de propiedad (casa, departamento o PH). 
+En esta instancia, generamos dos objetos que contienen información agrupada por comunas de oferta de inmuebles. En la primera incorporamos información sobre el tipo de propiedad  (casa, departamento o PH) y operación (venta o alquiler), y del promedio de precio y precio por metro cuadrado por comuna. En la segunda, hicimos lo mismo pero sin considerar el tipo de propiedad. 
 
 ```{r}
 properati_2021$comuna <- as.factor(round(as.numeric(properati_2021$comuna)))
@@ -116,8 +116,8 @@ properati_2021_pm_comuna_resumen <- properati_2021 %>%
 
 ## 2.1. Oferta de inmuebles en venta y en alquiler
 
-En este apartado analizamos la oferta de inmuebles en venta y en alquiler. En particular, la correlación entre precio y superficie en la oferta de inmuebles en venta y en alquiler en la Ciudad de Buenos Aires y las diferencias de precios por comuna según tipo de propiedad ofrecida. 
-Para ello, comenzamos visualizando nuestros datos a través de **gráficos de distribución** con regresión lineal, **gráficos de barras** y **mapas de densidad**.  
+En este apartado analizamos la oferta de inmuebles en venta y en alquiler. En particular, la correlación entre precio y superficie en la oferta de inmuebles en venta y en alquiler en la Ciudad de Buenos Aires y las variaciones de precios por comuna según tipo de propiedad ofrecida. 
+Para ello, comenzamos visualizando nuestros datos a través de **gráficos de distribución**, * con **regresión lineal** y **gráficos de barras**.  
 
 ### i) Inmuebles en venta
 
@@ -169,8 +169,8 @@ grafico_2 <- ggplot() +
 (grafico_1 / grafico_2)
 ```
 
-El gráfico 1 muestra cómo se distribuye la oferta de casas, PH y departamentos en venta en la Ciudad de Buenos Aires a partir de las variables precio en dólares (y) y la superficie total en metros cuadrados (x), y tal como lo ilustra la regresión lineal, existe una relación positiva entre la variable independiente (superficie) y la variable dependiente (precios).Asimismo, puede distinguirse que los PH suelen ser en proporción más baratos que casas y departamentos, al encontrarse en su mayoría concentrados por debajo de la línea de regresión, lo cual puede ser atribuido a la antiguedad de los mismos en relación a otros inmuebles (sobre todo departamentos).
-El gráfico 2 muestra en un gráfico de barras el precio promedio del metro cuadrado en dólares de los inmuebles en venta de cada comuna, separado entre casas, departamentos y PH, y el precio promedio global para la comuna. De aquí puede saberse que las casas más caras se encuentran localizadas en la Comuna 14 (Palermo) y luego, con un precio promedio por metro cuadrado de más de 700 USD inferior al de Palermo, encontramos a la Comuna 2 (Recoleta). En relación a los departamentos sigue siendo Palermo la que posee el precio por metro cuadrado más caro en promedio, pero inmediatamente encontramos a la Comuna 1, que aglutina a Retiro, San Nicolás, Puerto Madero, San Telmo, Montserrat y Constitución. Es notorio que el precio de las casas es muy superior en la Comuna 14 respecto de la Comuna 1, dado que la oferta de casas y PH está concentrada en los barrios más degradados de la comuna -y en Puerto Madero no hay oferta de casas y PH-, mientras que el barrio de Puerto Madero hace que el precio promedio del metro cuadrado de los departamentos suba en la comuna, hasta casi alcanzar los 3000 USD por metro cuadrado en promedio. En contraste, los PH de la Comuna 1 son de los más baratos en promedio de toda la ciudad.  
+El gráfico 1 muestra cómo se distribuye la oferta de casas, PH y departamentos en venta en la Ciudad de Buenos Aires a partir de las variables precio en dólares (y) y la superficie total en metros cuadrados (x). Tal como lo ilustra la regresión lineal, existe una relación positiva entre la variable independiente (superficie) y la variable dependiente (precios). Asimismo, puede distinguirse que los PH suelen ser en proporción más baratos que casas y departamentos, al encontrarse en su mayoría concentrados por debajo de la línea de regresión, lo cual puede ser atribuido a la antiguedad de los mismos en relación a otros inmuebles (sobre todo departamentos).
+El gráfico 2 muestra en un gráfico de barras el precio promedio del metro cuadrado en dólares de los inmuebles en venta de cada comuna, según se trate de casas, departamentos o PHs, y el precio promedio global para la comuna. Aquí puede observarse que las casas más caras se encuentran localizadas en la Comuna 14 (Palermo) y luego, con un precio promedio por metro cuadrado de más de 700 USD inferior al de Palermo, encontramos a la Comuna 2 (Recoleta). En relación a los departamentos sigue siendo Palermo la que posee el precio por metro cuadrado más caro en promedio, pero inmediatamente encontramos a la Comuna 1, que aglutina a Retiro, San Nicolás, Puerto Madero, San Telmo, Montserrat y Constitución. Es notorio que el precio de las casas y PH es muy superior en la Comuna 14 respecto de la Comuna 1, dado que la oferta de este tipo de propiedades está concentrada en los barrios más degradados de la comuna -y en Puerto Madero no hay oferta de casas y PH-, mientras que el barrio de Puerto Madero hace que el precio promedio del metro cuadrado de los departamentos suba en la comuna, hasta casi alcanzar los 3000 USD por metro cuadrado en promedio. En contraste, los PH de la Comuna 1 son de los más baratos en promedio de toda la ciudad.  
 
 ### ii) inmuebles en alquiler
 
@@ -223,7 +223,7 @@ grafico_4 <- ggplot() +
 ```
 
 El gráfico 3 muestra cómo se distribuye la oferta de casas, PH y departamentos en alquiler en la Ciudad de Buenos Aires a partir de las variables precio en dólares (y) y la superficie total en metros cuadrados (x). Tanto la regresión como las tendencias vemos que son similares a la de los inmuebles en venta (a mayor superficie, mayor precio), pero en cuanto a la dispersión de los datos, vemos que hay mucha mayor concentración de oferta de inmuebles en alquiler de superficies menores a las que hay en el mercado de compraventa. Mientras la mayor cantidad de los datos para alquileres se concentran en el rango de 0 a 200 metros cuadrados totales, para ventas hay una cantidad significativa de observaciones que alcanzan los 500 m2. Esto se corresponde también con el hecho de que hay menos casas y PH en alquiler de las que hay en venta. Lo dicho puede deberse a que la demanda de inmuebles en alquiler está más concentrada en franjas etáreas más jóvenes, cuyos hogares son menores en relación a la demanda de inmuebles en venta, entre otros factores. Lo cierto es que el mercado inmobiliario oferta viviendas menores en alquiler de las que oferta en venta, en promedio.
-El gráfico 4 aparece relativamente parecido al gráfico 2 relativo a los inmuebles en venta, pero puede verse que la Comuna 1 es esta vez la que encabeza en precios promedio el ranking de precios, seguida por la Comuna 14 (Palermo) y la 13 (Belgrano, Colegiales, Núñez). Esto puede explicarse por las características de la demanda, dado que es factible que en comunas como la 13 y 14, muchos de los hogares demandantes procuren viviendas para comprar y permanencer en ellas, mientras que en la Comuna 1 (especialmente en Puerto Madero), por sus características de localización y cercanía con el centro financiero y de negocios, es factible que se demanden, en proporción, unidades de carácter más "transitorio".
+El gráfico 4 se asemeja al gráfico 2 relativo a los inmuebles en venta, pero puede verse que la Comuna 1 es esta vez la que encabeza en precios promedio el ranking de precios, seguida por la Comuna 14 (Palermo) y la 13 (Belgrano, Colegiales, Núñez). Esto puede explicarse por las características de la demanda, dado que es factible que en comunas como la 13 y 14, muchos de los hogares demandantes procuren viviendas para comprar y permanencer en ellas, mientras que en la Comuna 1 (especialmente en Puerto Madero), por sus características de localización y cercanía con el centro financiero y de negocios, es factible que se demanden, en proporción, unidades de carácter más "transitorio".
 
 ## 2.2. Mapas de precios
 
@@ -259,7 +259,7 @@ ggmap(mapa_caba)+
   theme(plot.title = element_text(face="bold", size=15))
 ```
 
-En este primer mapa coroplético que elaboramos (al que superpusimos con un Stamen map de la Ciudad y el AMBA a través de ggmap()) vemos que, al dividir en barrios el precio de inmuebles en venta, Puerto Madero destaca respecto del resto y hace que en la visualización se vean más diluidas u homogeneizadas las diferencias de precios entre el resto de los barrios. Por esa razón, nos pareció valioso trabajar también con el mapa de precios de la ciudad dividido por comunas. 
+En este primer mapa coroplético que elaboramos (al que superpusimos con un Stamen map de la Ciudad y el AMBA) vemos que, al dividir en barrios el precio de inmuebles en venta, Puerto Madero destaca respecto del resto y hace que en la visualización se vean más diluidas u homogeneizadas las diferencias de precios entre el resto de los barrios. Por esa razón, nos pareció valioso trabajar también con el mapa de precios de la ciudad dividido por comunas. 
 
 ```{r}
 precios_por_comuna_resumen <- comunas_CABA %>% 
@@ -285,7 +285,7 @@ ggplot(data=precios_por_comuna_resumen)+
   theme(plot.title = element_text(face="bold", size=15))
 ```
 
-El mapa de precios por comuna nos permite visualizar con mayor claridad la gradiente de precios y la división norte (eje de riqueza) -sur (eje de pobreza) de la ciudad. Así, se evidencia que la Comuna 8 es la comuna con menores precios promedio, mientras que Palermo es la comuna más valorizada. Ahora ya no aparece Puerto Madero al verse subsumido dentro de una de las comunas que presenta algunos de los barrios menos valorizados de la ciudad. 
+El mapa de precios por comuna nos permite visualizar con mayor claridad la gradiente de precios y la división norte (eje de riqueza) - sur (eje de pobreza) de la ciudad. Así, se evidencia que la Comuna 8 es la comuna con menores precios promedio, mientras que Palermo es la comuna más valorizada. Ahora ya no aparece Puerto Madero al verse subsumido dentro de una de las comunas que presenta algunos de los barrios menos valorizados de la ciudad. 
 
 ```{r, fig.width=15, fig.height=7}
 ggplot()+
