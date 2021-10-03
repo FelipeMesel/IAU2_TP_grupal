@@ -30,16 +30,18 @@ properati_CABA_venta <- vroom("data/properati_CABA_venta")
 properati_CABA_alq <- properati_CABA_alq %>%
                       mutate(price=if_else(currency == "ARS", 
                                            round(price/(104.72*1.65),2), price),     
-                             currency= "USD") %>%
-                      filter(price>50 & price < 10000 & surface_total>18 &  surface_total < 750)
+                                           currency= "USD") %>%
+                      filter(price>50 & price < 10000 & 
+                             surface_total>18 & surface_total < 750)
 ```
 
 ```{r}
 properati_CABA_venta <-  properati_CABA_venta %>%
                          mutate(price=if_else(currency == "ARS",
                                               round(price/(104.72*1.65),2), price), 
-                                currency= "USD") %>%
-                         filter(price>30000 & price < 10000000 & surface_total>18 &  surface_total < 750)
+                                              currency= "USD") %>%
+                         filter(price>30000 & price < 10000000 & 
+                                surface_total>18 &  surface_total < 750)
 ```
 
 ```{r}
@@ -311,6 +313,7 @@ Con el recorrido del subte, vemos que existe una correlación entre la conectivi
 # 2.3.b. Equipamiento de salud y educación.
 
 ```{r}
+#AGREGAR BARRIO EN HOSPITALES Y FILTRAR TODO POR PUERTO MADERO Y LUGANO
 
 hospitales <- read_sf("data/hospitales.geojson")%>%
               select(NOMBRE, TIPO, DOM_NORMA)%>%
@@ -327,9 +330,14 @@ cesacs <- cesacs %>%
           mutate(lon = as.numeric(st_coordinates(cesacs$geometry)[,1]),
                  lat = as.numeric(st_coordinates(cesacs$geometry)[,2]))
 
+establecimientos_educativos <- read_sf("data/establecimientos_educativos.geojson") %>% 
+                               select(nombre_est, nivel=nivelmodal, dom_edific, barrio)
 
-escuelas <- read_csv("data/establecimientos_educativos.csv") %>% 
-            select(nombre_est, nivel = Nivel, dom_edific, barrio, lon = point_x, lat= point_y)
+#BUSCAR OBSERVACIONES CON ERRORES EN LA GEOMETRIA
+
+establecimientos_educativos <- establecimientos_educativos %>% 
+      mutate(lon = as.numeric(st_coordinates(establecimientos_educativos$geometry)[,1]),
+             lat = as.numeric(st_coordinates(establecimientos_educativos$geometry)[,2]))
 
 universidades <- read.csv("data/universidades.csv", encoding = "UTF-8") %>% 
                  select(universida, direccion_norm, barrio, long, lat) %>% 
@@ -338,31 +346,30 @@ universidades <- read.csv("data/universidades.csv", encoding = "UTF-8") %>%
 ```
 
 ```{r}
-
 icons_univ <- awesomeIcons(icon= "school",
                       iconColor = "black",
                       library = "ion",
-                      markerColor = "deeppink3")
+                      markerColor = "darkpurple")
 
 icons_esc <- awesomeIcons(icon= "school",
                       iconColor = "black",
                       library = "fa",
-                      markerColor = "lightpink")
+                      markerColor = "purple")
 
-icons_hosp <- awesomeIcons(icon = "hospital",
+icons_hosp <- awesomeIcons(icon = "hospital-o",
                       iconColor = "black",
                       library = "fa",
-                      markerColor = "snow4")
+                      markerColor = "cadetblue")
 
 icons_cesac <- awesomeIcons(icon = "clinic-medical",
                       iconColor = "black",
                       library = "fa",
-                      markerColor = "snow3")
+                      markerColor = "lightblue")
 
-leaflet(hospitales) %>%
+leaflet() %>%
   addTiles() %>%
   addProviderTiles(providers$CartoDB) %>%
-  addAwesomeMarkers(~lon, ~lat, popup = ~nombre, icon=icons_hosp)
-
-
+  addAwesomeMarkers(data=hospitales,~lon, ~lat, popup = ~nombre, icon=icons_hosp) %>%
+  addAwesomeMarkers(data=cesacs,~lon, ~lat, popup = ~nombre, icon=icons_cesac) %>% 
+  addAwesomeMarkers(data=universidades,~long, ~lat, popup = ~universida, icon=icons_univ) 
 ```
