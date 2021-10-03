@@ -5,6 +5,13 @@ date: "9/30/2021"
 output: html_document
 ---
 
+# Trabajo Final de la materia Instrumentos de Análisis Urbano 2
+## Maestría en Economía Urbana - UTDT. 
+
+Alumnos: Guadalupe Atienza, Georgina Gorlero, Felipe Mesel. 
+Profesores: Juan Pablo Ruiz Nicolini, Pablo Tiscornia.
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -24,10 +31,14 @@ library(stringr)
 
 # 1. Importación y procesamiento de datos
 
+Nos propusimos trabajar con dos bases de datos de Properati, correspondientes al año 2021 -encontramos datos que van de marzo del 2021 hasta el presente-, relativos a la **oferta de inmuebles en venta y alquiler en la Ciudad de Buenos Aires**, a los fines de analizar la gradiente de precios del suelo en la ciudad.
+
 ```{r}
 properati_CABA_alq <- vroom("data/properati_CABA_alq")
 properati_CABA_venta <- vroom("data/properati_CABA_venta")
 ```
+
+Habiendo cargado las bases de alquileres y venta, estamos en condiciones de procesar los datos, para lo cual tomamos un conjunto de decisiones. En primer lugar, trasladamos a dólares todas las ofertas de alquileres que se encontraban en pesos, y las pocas de venta que también estaban en pesos, considerando para ello el precio del dólar oficial con los impuestos que se le incorporan. Asimismo, teniendo en cuenta que en la base habían outliers que muy probablemente obedecen a que los datos no fueron correctamente cargados, y que por tanto ensuciaban las bases, decidimos tomar un rango de precios y superficie total que entendimos verosímil. 
 
 ```{r}
 properati_CABA_alq <- properati_CABA_alq %>%
@@ -47,6 +58,8 @@ properati_CABA_venta <-  properati_CABA_venta %>%
                                 surface_total>18 &  surface_total < 750)
 ```
 
+Cargamos la base de datos de barrios de la Ciudad, proveniente de BA Data, e inspeccionándola pudimos ver que las comunas estaban escritas con decimales por lo que limpiamos la columna:
+
 ```{r}
 barrios_CABA <- read_sf("data/barrios.geojson")
 comunas_CABA <- read_sf("data/CABA_comunas.geojson")
@@ -54,6 +67,8 @@ comunas_CABA <- read_sf("data/CABA_comunas.geojson")
 barrios_CABA$COMUNA <- as.factor(round(as.numeric(barrios_CABA$COMUNA)))
 comunas_CABA$COMUNAS <- as.factor(round(as.numeric(comunas_CABA$COMUNAS)))
 ```
+
+Ahora juntamos los data frame de "venta" y "alquileres" que trabajamos y, a partir de que ambos contaban con información de latitud y longitud, pudimos convertirlo en un objeto espacial. Luego juntamos la base de properati elaborada con la de barrios a través de la función st_join (dado que ambos son objetos espaciales), limpiando la base para que no queden observaciones sin barrio ni información vacía respecto de la superficie total que es la que consideraremos de ahora en más. Para ello, para aquellas observaciones de superficie total en las cuales vimos que no había información pero sí había información respecto de la superficie cubierta, decidimos que la columna de "superficie total" se trajera el dato de la columna de "superficie cubierta". En caso de que falte el dato en ambas columnas, retiramos la observación. Luego, hicimos una columna con el precio por metro cuadrado en dólares, dividiendo las columnas de precio y superficie total, y elegimos quedarnos solamente con las columnas que vamos a utilizar.
 
 ```{r}
 properati_2021 <- merge.data.frame(properati_CABA_venta, properati_CABA_alq, all=T) %>% 
@@ -77,6 +92,8 @@ properati_2021 <- properati_2021 %>%
                   geometria=geometry)
 ```
 
+En esta instancia, generamos dos objetos que contiene información agrupada por comunas de oferta de inmuebles. En la primera incorporamos información sobre el tipo de propiedad en venta y alquiler, y de promedio de precio y promedio de precio por metro cuadrado por comuna. En la segunda, hicimos lo mismo pero sin considerar el tipo de propiedad (casa, departamento o PH). 
+
 ```{r}
 properati_2021$comuna <- as.factor(round(as.numeric(properati_2021$comuna)))
 ```
@@ -99,10 +116,10 @@ properati_2021_pm_comuna_resumen <- properati_2021 %>%
 
 ## 2.1. Oferta de inmuebles en venta y en alquiler
 
-En este apartado analizamos la oferta de inmuebles en venta y en alquiler. En particular, la correlación entre precio y superficie en la oferta de inmuebles en venta y en alquiler en la Ciudad de Buenos Aires y las diferencias de precios por Comuna según tipo de propiedad ofrecida. 
-Para ello, comenzaremos por visualizar nuestros datos con  **gráficos de distribución** con regresión lineal y **gráficos de barras**.  
+En este apartado analizamos la oferta de inmuebles en venta y en alquiler. En particular, la correlación entre precio y superficie en la oferta de inmuebles en venta y en alquiler en la Ciudad de Buenos Aires y las diferencias de precios por comuna según tipo de propiedad ofrecida. 
+Para ello, comenzamos visualizando nuestros datos a través de **gráficos de distribución** con regresión lineal, **gráficos de barras** y **mapas de densidad**.  
 
-### i) inmuebles en venta
+### i) Inmuebles en venta
 
 ```{r}
 grafico_1  <- properati_2021%>% 
@@ -116,7 +133,7 @@ filter(tipo_operacion== "Venta") %>%
   theme(axis.title.y = element_text(face="bold", vjust=-0.5, colour="firebrick", size=12)) + 
   labs(title = "Gráfico 1. Superficie y precio en la oferta de inmuebles en venta en CABA", 
        subtitle = "Precio de los inmuebles en venta según superficie y tipo de propiedad en CABA",
-       x = "Superficie cubierta (m2)",
+       x = "Superficie total (m2)",
        y = "Precio (miles de USD)",
        caption = "fuente: Properati - año 2021",
        color ="tipo de propiedad") + 
@@ -152,6 +169,9 @@ grafico_2 <- ggplot() +
 (grafico_1 / grafico_2)
 ```
 
+El gráfico 1 muestra cómo se distribuye la oferta de casas, PH y departamentos en venta en la Ciudad de Buenos Aires a partir de las variables precio en dólares (y) y la superficie total en metros cuadrados (x), y tal como lo ilustra la regresión lineal, existe una relación positiva entre la variable independiente (superficie) y la variable dependiente (precios).Asimismo, puede distinguirse que los PH suelen ser en proporción más baratos que casas y departamentos, al encontrarse en su mayoría concentrados por debajo de la línea de regresión, lo cual puede ser atribuido a la antiguedad de los mismos en relación a otros inmuebles (sobre todo departamentos).
+El gráfico 2 muestra en un gráfico de barras el precio promedio del metro cuadrado en dólares de los inmuebles en venta de cada comuna, separado entre casas, departamentos y PH, y el precio promedio global para la comuna. De aquí puede saberse que las casas más caras se encuentran localizadas en la Comuna 14 (Palermo) y luego, con un precio promedio por metro cuadrado de más de 700 USD inferior al de Palermo, encontramos a la Comuna 2 (Recoleta). En relación a los departamentos sigue siendo Palermo la que posee el precio por metro cuadrado más caro en promedio, pero inmediatamente encontramos a la Comuna 1, que aglutina a Retiro, San Nicolás, Puerto Madero, San Telmo, Montserrat y Constitución. Es notorio que el precio de las casas es muy superior en la Comuna 14 respecto de la Comuna 1, dado que la oferta de casas y PH está concentrada en los barrios más degradados de la comuna -y en Puerto Madero no hay oferta de casas y PH-, mientras que el barrio de Puerto Madero hace que el precio promedio del metro cuadrado de los departamentos suba en la comuna, hasta casi alcanzar los 3000 USD por metro cuadrado en promedio. En contraste, los PH de la Comuna 1 son de los más baratos en promedio de toda la ciudad.  
+
 ### ii) inmuebles en alquiler
 
 ```{r}
@@ -166,7 +186,7 @@ filter(tipo_operacion== "Alquiler") %>%
   theme(axis.title.y = element_text(face="bold", vjust=-0.5, colour="firebrick", size=12)) + 
   labs(title = "Gráfico 3.Superficie y precio en la oferta de inmuebles en alquiler en CABA", 
        subtitle = "Precio de los inmuebles en alquiler según superficie y tipo de propiedad en CABA",
-       x = "Superficie cubierta (m2)",
+       x = "Superficie total (m2)",
        y = "Precio (en USD)",
        caption = "fuente: Properati - año 2021",
        color ="tipo de propiedad") + 
@@ -202,9 +222,12 @@ grafico_4 <- ggplot() +
 (grafico_3 / grafico_4)
 ```
 
+El gráfico 3 muestra cómo se distribuye la oferta de casas, PH y departamentos en alquiler en la Ciudad de Buenos Aires a partir de las variables precio en dólares (y) y la superficie total en metros cuadrados (x). Tanto la regresión como las tendencias vemos que son similares a la de los inmuebles en venta (a mayor superficie, mayor precio), pero en cuanto a la dispersión de los datos, vemos que hay mucha mayor concentración de oferta de inmuebles en alquiler de superficies menores a las que hay en el mercado de compraventa. Mientras la mayor cantidad de los datos para alquileres se concentran en el rango de 0 a 200 metros cuadrados totales, para ventas hay una cantidad significativa de observaciones que alcanzan los 500 m2. Esto se corresponde también con el hecho de que hay menos casas y PH en alquiler de las que hay en venta. Lo dicho puede deberse a que la demanda de inmuebles en alquiler está más concentrada en franjas etáreas más jóvenes, cuyos hogares son menores en relación a la demanda de inmuebles en venta, entre otros factores. Lo cierto es que el mercado inmobiliario oferta viviendas menores en alquiler de las que oferta en venta, en promedio.
+El gráfico 4 aparece relativamente parecido al gráfico 2 relativo a los inmuebles en venta, pero puede verse que la Comuna 1 es esta vez la que encabeza en precios promedio el ranking de precios, seguida por la Comuna 14 (Palermo) y la 13 (Belgrano, Colegiales, Núñez). Esto puede explicarse por las características de la demanda, dado que es factible que en comunas como la 13 y 14, muchos de los hogares demandantes procuren viviendas para comprar y permanencer en ellas, mientras que en la Comuna 1 (especialmente en Puerto Madero), por sus características de localización y cercanía con el centro financiero y de negocios, es factible que se demanden, en proporción, unidades de carácter más "transitorio".
+
 ## 2.2. Mapas de precios
 
-En este apartado, utilizaremos mapas de calor para ilustrar la variación de los precios de la oferta de viviendas en venta por barrio y por comuna, agrupando y resumiendo las observaciones trbajadas en el punto anterior. 
+En este apartado, utilizaremos mapas de calor para ilustrar la variación de los precios de la oferta de viviendas en venta por barrio y por comuna, agrupando y resumiendo las observaciones trabajadas en el punto anterior. 
 
 ```{r}
 precios_por_barrio <- properati_2021 %>% 
@@ -235,6 +258,9 @@ ggmap(mapa_caba)+
   theme_void() + 
   theme(plot.title = element_text(face="bold", size=15))
 ```
+
+En este primer mapa coroplético que elaboramos (al que superpusimos con un Stamen map de la Ciudad y el AMBA a través de ggmap()) vemos que, al dividir en barrios el precio de inmuebles en venta, Puerto Madero destaca respecto del resto y hace que en la visualización se vean más diluidas u homogeneizadas las diferencias de precios entre el resto de los barrios. Por esa razón, nos pareció valioso trabajar también con el mapa de precios de la ciudad dividido por comunas. 
+
 ```{r}
 precios_por_comuna_resumen <- comunas_CABA %>% 
                               left_join(properati_2021_pm_comuna_resumen,
@@ -259,6 +285,8 @@ ggplot(data=precios_por_comuna_resumen)+
   theme(plot.title = element_text(face="bold", size=15))
 ```
 
+El mapa de precios por comuna nos permite visualizar con mayor claridad la gradiente de precios y la división norte (eje de riqueza) -sur (eje de pobreza) de la ciudad. Así, se evidencia que la Comuna 8 es la comuna con menores precios promedio, mientras que Palermo es la comuna más valorizada. Ahora ya no aparece Puerto Madero al verse subsumido dentro de una de las comunas que presenta algunos de los barrios menos valorizados de la ciudad. 
+
 ```{r, fig.width=15, fig.height=7}
 ggplot()+
   geom_sf(data=precios_por_comuna, mapping=aes(fill=precio_m2), color="white") +
@@ -271,11 +299,16 @@ ggplot()+
   facet_wrap(~tipo_propiedad)
 ```
 
+En este mapa podemos observar que el precio promedio por metro cuadrado de los departamentos es superior al de los ph, y éste, al de las casas. De esto resulta que para la mayoría de las comunas, el precio promedio del metro cuadrado se encuentra en un nivel diferente de la escala para cada tipo de inmueble. El caso más elocuente, en este sentido, es el de la comuna 1, donde el precio promedio de los departamentos y las casas se encuentran en uno y otro extremo de la escala: vemos que para los primeros, la comuna sigue claramente el nivel de precios del corredor norte de la ciudad, mientras que para las segundas, sigue el del corredor sur. Como ya hemos indicado, pensamos que esto puede deberse a la existencia de zonas altamente degradadas (aquellas lindantes al centro histórico de la ciudad y los principales nodos de transporte) que concentran la mayor proporción de casas y ph de la comuna en contraste con zonas altamente valoradas que ofrecen únicamente departamentos suntuosos. Asimismo, puede observarse que el mapa que más se asemeja en la distribución de los niveles de precios por comuna al mapa que hemos elaborado previamente es el de los departamentos, lo cual da cuenta de que la mayor proporción de inmuebles ofertados es de este tipo. 
+Finalmente, vemos que el metro cuadrado de las casas y los PH en la zona sur están proporcionalmente más baratos que el de los departamentos para las mismas comunas (1, 4, 8, 9, 10 y 7). Esto puede estar explicando cierta tendencia de renovación y encarecimiento de áreas históricamente degradadas, si entendemos que el parque inmobiliario de casas es más antiguo que el de departamentos, y está habiendo cierto proceso de recambio y densificación que implica encarecimiento de los inmuebles (y del metro cuadrado, particularmente) en la zona. 
+
 ## 2.3. Infraestructuras y equipamientos
 
-Ahora buscaremos encontrar la relación entre el mapa de precios de la ciudad y los equipamientos e infraestructuras urbanas.
+Habiendo identificado las áreas más y menos valorizadas de la Ciudad, continuaremos tratando de encontrar algunas relaciones que son fundamentales para la economía urbana: el precio del suelo y su correlación con la existencia de infraestructuras públicas y equipamientos comunitarios; es decir, si la acción estatal (y en algunos casos, las acciones del sector privado) están determinando la gradiente de precios. Para ello, tomaremos el mapa de precios de la ciudad dividido por comunas, y solamente tendremos en cuenta la oferta de inmuebles en venta en la Ciudad de Buenos Aires. 
 
 ### i) Accesibilidad
+
+Para medir la accesibilidad de las distintas comunas de la ciudad, incorporaremos a nuestro mapa la conectividad que brinda la red de subterráneos de la ciudad, la red de ferrocarriles y el recorrido del Metrobús. 
 
 ```{r}
 CABA <- barrios_CABA %>% 
@@ -297,7 +330,21 @@ estaciones_ferrocarril <- read_sf("data/estaciones-de-ferrocarril.geojson") %>%
 ggplot() + 
   geom_sf (data=precios_por_comuna_resumen, aes(fill=precio_m2), color=NA) +
  labs(title = "Mapa 3.Precio, localización y transporte",
-         subtitle = "La importancia de la localización en el precio de los inmuebles de la CABA",
+         subtitle = "La importancia de la localización en el precio de los inmuebles de la CABA: subteráneo",
+         fill = "Precio promedio (U$D/m2)",
+         caption= "Fuente: Properati - 2021") +
+  scale_fill_distiller(palette = "Spectral") +
+  geom_sf(data=lineas_subte, color="grey10")+
+  geom_sf(data=estaciones_subte, color="grey10", size=1) +
+  theme_void() + 
+  theme(plot.title = element_text(face="bold", size=15))
+```
+
+```{r}
+ggplot() + 
+  geom_sf (data=precios_por_comuna_resumen, aes(fill=precio_m2), color=NA) +
+ labs(title = "Mapa 4.Precio, localización y transporte",
+         subtitle = "La importancia de la localización en el precio de los inmuebles de la CABA: subterráneo, metrobús y ferrocarril",
          fill = "Precio promedio (U$D/m2)",
          caption= "Fuente: Properati - 2021") +
   scale_fill_distiller(palette = "Spectral") +
@@ -309,7 +356,11 @@ ggplot() +
   theme_void() + 
   theme(plot.title = element_text(face="bold", size=15))
 ```
-Con el recorrido del subte, vemos que existe una correlación entre la conectividad que brinda el servicio y el precio de los inmuebles en las comunas. Sin embargo, cuando vemos el metrobus y el ferrocarril (que son medios de transporte cuya efectividad suele ser peor) la conectividad es más amplia.
+
+Con el recorrido del subterráneo, vemos que existe una correlación entre la conectividad que brinda el servicio y el precio de los inmuebles en las comunas. En este sentido, puede suponerse que la red de subterráneo está produciendo impactos positivos en el precio del suelo al que sirve. 
+Cuando observamos el metrobus y el ferrocarril la conectividad se amplía a otras localizaciones, alcanzando a comunas que el subterráneo no llega. Esto puede tener dos interpretaciones: 1) el ferrocarril y el metrobús podrían no estar generando los impactos de valorización de suelo que genera el subterráneo (para profundizar en este punto, tendríamos que analizar mejor las tendencias en los aumentos del precio del suelo servido por las distintas redes); 2) Las comunas de menores ingresos se ven abastecidas por redes de transporte que son menos eficientes que el subterráneo, lo que podría estar dando cuenta de una situación de segregación basada en las formas de movilidad.
+Además, el mapa permite distinguir claramente la ubicación del centro de la ciudad, donde se concentra la mayor cantidad de estaciones y combinaciones dentro y entre redes, las cuales se dispersan radialmente a medida que nos alejamos del mismo. Como es sabido los precios de los inmuebles están determinados por el nivel de la renta del suelo urbano y ésta a su vez, por la localización. En este sentido, puede observarse que la comuna 1, en el centro de la ciudad, registra uno de los mayores niveles de precio promedio del metro cuadrado de la ciudad. 
+Llama la atención, sin embargo, que algunas comunas más distantes del centro y con menor concentración de medios de transporte no tienen un mismo patrón de niveles de precios en el norte, en el centro y en el sur. Es decir que las diferencias de precios no parecerían poder explicarse cabalmente por la distancia del centro y disponibilidad de medios de transporte. Ahora bien, también es sabido que la localización no se agota en distancia del centro y disponibilidad de medios de transporte, sino que comprende a su vez elementos subjetivos, que hacen a las preferencias y tienen que ver con la necesidad de diferenciación de los sujetos que pueden aspirar a residir en ciertas zonas de la ciudad, que gozan de mayor distinción.
 
 ### ii) Equipamiento de salud y educación
 
