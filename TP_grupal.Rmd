@@ -13,13 +13,13 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(vroom)
 library(janitor)
-library(lubridate)
 library(ggmap)
 library(sf)
 library(leaflet)
 library(patchwork)
 devtools::install_github("rstudio/fontawesome")
 library(fontawesome)
+library(stringr)
 ```
 
 # 1. Importación y procesamiento de datos
@@ -319,8 +319,7 @@ hospitales <- read_sf("data/hospitales.geojson")%>%
 
 hospitales <- hospitales %>%
               st_join(barrios_CABA) %>% 
-              clean_names() %>% 
-              filter(comuna == "8" | comuna == "14" | comuna == "1")
+              clean_names() #mostramos todos los hospitales de la ciudad
 
 hospitales <- hospitales %>%
               mutate(lon = as.numeric(st_coordinates(hospitales$geometry)[,1]),
@@ -335,8 +334,17 @@ cesacs <- cesacs %>%
                  lat = as.numeric(st_coordinates(cesacs$geometry)[,2]))
 
 establecimientos_educativos <- read_sf("data/establecimientos_educativos.geojson") %>% 
-                               select(nombre_est, nivel=nivelmodal, dom_edific, comuna, barrio) %>% 
-                               filter(comuna == "8" | comuna == "14" | comuna == "1" & nombre_est != "Centro de Formación Profesional - Cetic (Centro de Estudios Técnicos de la Industria de la Confección)")  #sacamos un establecimiento que identificamos tiene mal su geometría
+                               select(nombre_est, nivel=nivelmodal, dom_edific,sector, comuna, barrio)
+
+establecimientos_educativos <-  establecimientos_educativos %>% 
+                                filter(comuna == "8" | 
+                                      comuna == "14" | 
+                                      comuna == "1", 
+                                      !str_starts( establecimientos_educativos$nivel, "Otros"),
+                                      !str_detect( establecimientos_educativos$nivel, "Superior"),
+                                      !str_starts( establecimientos_educativos$nivel, "Nivel Secundario"),
+                                      sector == 1 ) #nos quedamos con los del sector estatal
+                                        
 
 
 
@@ -353,36 +361,39 @@ universidades <- read.csv("data/universidades.csv", encoding = "UTF-8") %>%
 
 ```{r}
 
-clinic_medical = makeAwesomeIcon(text = fa("clinic-medical"))
-school = makeAwesomeIcon(text = fa("school"))
-university = makeAwesomeIcon(text = fa("university"))
+hospital <- makeAwesomeIcon(text = fa("hospital"),
+                                 markerColor = "cadetblue")
 
-icons_univ <- awesomeIcons(icon= "school",
-                      iconColor = "black",
-                      library = "ion",
-                      markerColor = "darkpurple")
+clinic_medical <- makeAwesomeIcon(text = fa("clinic-medical"),
+                                 markerColor = "lightblue")
 
-icons_esc <- awesomeIcons(icon= "school",
-                      iconColor = "black",
-                      library = "fa",
-                      markerColor = "purple")
+school <- makeAwesomeIcon(text = fa("school"),
+                         markerColor = "purple")
 
-icons_hosp <- awesomeIcons(icon = "hospital-o",
-                      iconColor = "black",
-                      library = "fa",
-                      markerColor = "cadetblue")
+university <- makeAwesomeIcon (text = fa("university"),
+                               markerColor = "darkpurple")
 
-icons_cesac <- awesomeIcons(icon = "clinic-medical",
-                      iconColor = "black",
-                      library = "fa",
-                      markerColor = "lightblue")
 ```
 
 ```{r}
-leaflet() %>%
-  addTiles() %>%
-  addProviderTiles(providers$CartoDB) %>%
-  addAwesomeMarkers(data=hospitales,~lon, ~lat, popup = ~nombre, icon=icons_hosp) %>%
-  addAwesomeMarkers(data=cesacs,~lon, ~lat, popup = ~nombre, icon=icons_cesac) %>% 
-  addAwesomeMarkers(data=universidades,~long, ~lat, popup = ~universida, icon=icons_univ) 
+leaflet1 <- leaflet() %>%
+            addTiles() %>%
+            addProviderTiles(providers$CartoDB) %>%
+            addAwesomeMarkers(data=hospitales,~lon, ~lat, popup = ~nombre, icon=hospital) %>%
+            addAwesomeMarkers(data=cesacs,~lon, ~lat, popup = ~nombre, icon=clinic_medical) 
+
 ```
+
+
+
+```{r}
+leaflet2 <- leaflet() %>%
+            addTiles() %>%
+            addProviderTiles(providers$CartoDB) %>%
+            addAwesomeMarkers(data=universidades,~long, ~lat, popup = ~universida, icon=university) %>% 
+            addAwesomeMarkers(data=establecimientos_educativos,~lon, ~lat, popup = ~nombre_est,    icon=school) 
+
+leaflet2
+
+```
+
