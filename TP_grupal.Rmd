@@ -213,9 +213,14 @@ precios_por_barrio <- left_join(barrios_CABA, precios_por_barrio,
 ```
 
 ```{r}
-ggplot()+
-  geom_sf(data=precios_por_barrio, mapping=aes(fill=precio_m2), color=NA) +
-  geom_sf(data=comunas_CABA, color="white", fill=NA) +
+bbox_barrios <- as.numeric(st_bbox(comunas_CABA))
+mapa_caba <- get_stamenmap(bbox = bbox_barrios, zoom=12) 
+```
+
+```{r}
+ggmap(mapa_caba)+
+  geom_sf(data=precios_por_barrio, mapping=aes(fill=precio_m2), color=NA, alpha=0.85, inherit.aes = FALSE) +
+  geom_sf(data=comunas_CABA, color="white", fill=NA, inherit.aes = FALSE) +
     labs(title = "Mapa 1. Precio promedio del m2 por barrio",
          fill = "Precio promedio (U$D/m2)",
          caption= "Fuente: Properati 2021") +
@@ -301,3 +306,5 @@ ggplot() +
   theme(plot.title = element_text(face="bold", size=15))
 ```
 Con el recorrido del subte, vemos que existe una correlación entre la conectividad que brinda el servicio y el precio de los inmuebles en las comunas. Sin embargo, cuando vemos el metrobus y el ferrocarril (que son medios de transporte cuya efectividad suele ser peor) la conectividad es más amplia.
+
+
