@@ -330,7 +330,7 @@ estaciones_ferrocarril <- read_sf("data/estaciones-de-ferrocarril.geojson") %>%
 ggplot() + 
   geom_sf (data=precios_por_comuna_resumen, aes(fill=precio_m2), color=NA) +
  labs(title = "Mapa 3.Precio, localización y transporte",
-         subtitle = "La importancia de la localización en el precio de los inmuebles de la CABA: subteráneo",
+         subtitle = "La importancia de la localización en el precio: el subteráneo",
          fill = "Precio promedio (U$D/m2)",
          caption= "Fuente: Properati - 2021") +
   scale_fill_distiller(palette = "Spectral") +
@@ -344,7 +344,7 @@ ggplot() +
 ggplot() + 
   geom_sf (data=precios_por_comuna_resumen, aes(fill=precio_m2), color=NA) +
  labs(title = "Mapa 4.Precio, localización y transporte",
-         subtitle = "La importancia de la localización en el precio de los inmuebles de la CABA: subterráneo, metrobús y ferrocarril",
+         subtitle = "La importancia de la localización: subterráneo, metrobús y ferrocarril",
          fill = "Precio promedio (U$D/m2)",
          caption= "Fuente: Properati - 2021") +
   scale_fill_distiller(palette = "Spectral") +
@@ -363,6 +363,8 @@ Además, el mapa permite distinguir claramente la ubicación del centro de la ci
 Llama la atención, sin embargo, que algunas comunas más distantes del centro y con menor concentración de medios de transporte no tienen un mismo patrón de niveles de precios en el norte, en el centro y en el sur. Es decir que las diferencias de precios no parecerían poder explicarse cabalmente por la distancia del centro y disponibilidad de medios de transporte. Ahora bien, también es sabido que la localización no se agota en distancia del centro y disponibilidad de medios de transporte, sino que comprende a su vez elementos subjetivos, que hacen a las preferencias y tienen que ver con la necesidad de diferenciación de los sujetos que pueden aspirar a residir en ciertas zonas de la ciudad, que gozan de mayor distinción.
 
 ### ii) Equipamiento de salud y educación
+
+Para analizar el equipamiento que tienen los barrios utilizaremos leaflet(). Para ello, tomaremos de las bases públicas de BA Data los hospitales, los CESAC, los establecimientos educativos y las universidades.
 
 ```{r}
 hospitales <- read_sf("data/hospitales.geojson")%>%
@@ -383,6 +385,8 @@ cesacs <- read_sf("data/centros_de_salud_nivel_1_BADATA_WGS84.geojson") %>%
 cesacs <- cesacs %>% 
           mutate(lon = as.numeric(st_coordinates(cesacs$geometry)[,1]),
                  lat = as.numeric(st_coordinates(cesacs$geometry)[,2]))
+```
+```{r}
 
 establecimientos_educativos <- read_sf("data/establecimientos_educativos.geojson") %>% 
                                select(nombre_est, nivel=nivelmodal, dom_edific,sector, comuna, barrio)
@@ -396,7 +400,6 @@ establecimientos_educativos <-  establecimientos_educativos %>%
                                       !str_starts( establecimientos_educativos$nivel, "Nivel Secundario"),
                                       sector == 1 ) #nos quedamos con los del sector estatal
                                         
-
 
 
 establecimientos_educativos <- establecimientos_educativos %>% 
@@ -426,6 +429,8 @@ university <- makeAwesomeIcon (text = fa("university"),
 
 ```
 
+Para los hospitales, tomamos la cobertura de toda la ciudad. En cambio, para CESAC, universidades y establecimientos educativos públicos decidimos tomar las Comunas 8, 14 y 1, no solo por la cantidad de observaciones, sino porque son aquellas que como vimos en los mapas anteriores, se encuetran en los extremos en el gradiente de precios. Por eso, nos interesa ver si hay una cobertura diferencial de estos equipamientos.
+
 ```{r}
 leaflet1 <- leaflet() %>%
             addTiles() %>%
@@ -435,7 +440,8 @@ leaflet1 <- leaflet() %>%
 
 ```
 
-
+Del mapa puede observarse la distribución en toda la ciudad de hospitales. Vemos que hay una importante concentración en el centro y en el eje norte de la ciudad. Paralelamente, vemos que en la Comuna 8 sólo encontramos el Hospital Cecilia Grierson. Sin embargo, entendemos que con estos datos no explicamos que exista efectivamente una incidencia de los hospitales en el precio del suelo. Palermo, por ejemplo, tiene varios hospitales de cercanía, pero solamente el Hospital Fernández en su interior y, como vimos, es la Comuna más cara.
+Respecto de los CESAC, vemos que en la Comuna 1 hay un CESAC en San Telmo (debido a la abundancia de hospitales en la cercanía) y 3 en la Villa 31, mientras que en la Comuna 14 hay 3 y en la Comuna 8 hay 10. Así, vemos que los CESAC vienen a cubrir una demanda de salud que los hospitales no están ofreciendo en determinadas localizaciones menos valorizadas (Comuna 8 y Villa 31 de Retiro).
 
 ```{r}
 leaflet2 <- leaflet() %>%
@@ -448,3 +454,5 @@ leaflet2
 
 ```
 
+Finalmente, podemos ver la concentración de universidades y establecimientos educativos públicos en las Comunas 1, 14 y 8. Vemos que en el área central (Comuna 1) se concentra la mayor cantidad de centros educativos, pero lo cierto es que no pareciera haber un desequilibrio ostensible entre la cantidad de establecimientos educativos de la Comuna 8 respecto de la Comuna 14. La única diferencia que se verifica es que la cantidad de universidades en la Comuna 8 es muy inferior a la de las otras dos Comunas (en la Comuna 8 se encuentra una sede de la UBA, la UTN y el Instituto Universitario de la Policía Federal Argentina, únicamente), lo que puede estar expresando una escasez en la oferta de educación universitaria de cercanía para la Comuna que posee el precio de suelo más bajo. No obstante, no podemos afirmar que se verifique con claridad una correlación entre la cantidad de establecimientos educativos y el precio del suelo.
+Por todo lo dicho, pareciera ser la red de subterráneo la que mejor explica, dentro de todas las infraestructuras y equipamientos considerados, algún grado de relación entre infraestructuras y precio de suelo. Quedará para futuros análisis la posibilidad de profundizar en esta hipótesis. 
