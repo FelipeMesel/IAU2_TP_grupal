@@ -308,3 +308,57 @@ ggplot() +
 Con el recorrido del subte, vemos que existe una correlación entre la conectividad que brinda el servicio y el precio de los inmuebles en las comunas. Sin embargo, cuando vemos el metrobus y el ferrocarril (que son medios de transporte cuya efectividad suele ser peor) la conectividad es más amplia.
 
 
+# 2.3.b. Equipamiento de salud y educación.
+
+```{r}
+
+hospitales <- read_sf("data/hospitales.geojson")%>%
+              select(NOMBRE, TIPO, DOM_NORMA)%>%
+              clean_names() %>% 
+              mutate(lon = as.numeric(st_coordinates(hospitales$geometry)[,1]),
+                     lat = as.numeric(st_coordinates(hospitales$geometry)[,2]))
+
+cesacs <- read_sf("data/centros_de_salud_nivel_1_BADATA_WGS84.geojson") %>% 
+          select(nombre, direccion_, barrio) %>% 
+          mutate(lon = as.numeric(st_coordinates(cesacs$geometry)[,1]),
+                 lat = as.numeric(st_coordinates(cesacs$geometry)[,2]))
+
+
+escuelas <- read_csv("data/establecimientos_educativos.csv") %>% 
+            select(nombre_est, nivel = Nivel, dom_edific, barrio, lon = point_x, lat= point_y)
+
+universidades <- read.csv("data/universidades.csv", encoding = "UTF-8") %>% 
+                 select(universida, direccion_norm, barrio, long, lat) %>% 
+                 unique()
+
+```
+
+```{r}
+
+icons_univ <- awesomeIcons(icon= "school",
+                      iconColor = "black",
+                      library = "ion",
+                      markerColor = "deeppink3")
+
+icons_esc <- awesomeIcons(icon= "school",
+                      iconColor = "black",
+                      library = "fa",
+                      markerColor = "lightpink")
+
+icons_hosp <- awesomeIcons(icon = "hospital",
+                      iconColor = "black",
+                      library = "fa",
+                      markerColor = "snow4")
+
+icons_cesac <- awesomeIcons(icon = "clinic-medical",
+                      iconColor = "black",
+                      library = "fa",
+                      markerColor = "snow3")
+
+leaflet(hospitales) %>%
+  addTiles() %>%
+  addProviderTiles(providers$CartoDB) %>%
+  addAwesomeMarkers(~lon, ~lat, popup = ~nombre, icon=icons_hosp)
+
+
+```
