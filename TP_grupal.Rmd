@@ -24,6 +24,7 @@ library(patchwork)
 properati_CABA_alq <- vroom("data/properati_CABA_alq")
 properati_CABA_venta <- vroom("data/properati_CABA_venta")
 ```
+## 1. Importación y procesamiento de datos.
 
 ```{r}
 properati_CABA_alq <- properati_CABA_alq %>%
@@ -76,6 +77,14 @@ properati_2021 <- properati_2021 %>%
 properati_2021$comuna <- as.factor(round(as.numeric(properati_2021$comuna)))
 ```
 
+
+## 2. Visualizaciones.
+
+# 2.1. Oferta de inmuebles en venta y en alquiler.
+
+En este apartado analizamos la correlación entre precio y superficie en la oferta de inmuebles en venta y en alquiler en la Ciudad de Buenos Aires y el ranking de precios por Comuna según tipo de propiedad. 
+Para ello, utilizaremos como visualización gráficos de distribución con regresión lineal y gráficos de barras.  
+
 ```{r}
 grafico_1  <- properati_2021%>% 
 filter(tipo_operacion== "Venta") %>%
@@ -99,7 +108,7 @@ filter(tipo_operacion== "Venta") %>%
 ```
 
 ```{r}
-grafico_2 <- properati_2021%>% 
+grafico_3 <- properati_2021%>% 
 filter(tipo_operacion== "Alquiler") %>%
   ggplot() + 
   geom_point(aes(x = sup_total, y = precio, color = tipo_propiedad, alpha=0.8)) +
@@ -108,7 +117,7 @@ filter(tipo_operacion== "Alquiler") %>%
   theme(plot.title = element_text(face="bold", size=13)) +
   theme(axis.title.x = element_text(face="bold", vjust=-0.5, colour="firebrick", size=12)) +
   theme(axis.title.y = element_text(face="bold", vjust=-0.5, colour="firebrick", size=12)) + 
-  labs(title = "Gráfico 2.Superficie y precio en la oferta de inmuebles en alquiler en CABA", 
+  labs(title = "Gráfico 3.Superficie y precio en la oferta de inmuebles en alquiler en CABA", 
        subtitle = "Precio de los inmuebles en alquiler según superficie y tipo de propiedad en CABA",
        x = "Superficie cubierta (m2)",
        y = "Precio (en USD)",
@@ -135,7 +144,7 @@ properati_2021_pm_comuna_resumen <- properati_2021 %>%
 ```
 
 ```{r, fig.width=13, fig.height=5}
-grafico_3 <- ggplot() +
+grafico_2 <- ggplot() +
   geom_label(data=properati_2021_pm_comuna_resumen%>%
              filter(tipo_operacion=="Venta"), 
              mapping= aes(x=fct_reorder(comuna,desc(precio_m2)), y=precio_m2+500,
@@ -148,7 +157,7 @@ grafico_3 <- ggplot() +
     theme(axis.title.x = element_text(face="bold", vjust=-0.5, colour="firebrick", size=12)) +
     theme(axis.title.y = element_text(face="bold", vjust=-0.5, colour="firebrick", size=12)) + 
     scale_fill_manual(values = c("gray85", "lightskyblue", "dodgerblue1")) +
-    labs(title = "Gráfico 3. Ranking de precios de venta", 
+    labs(title = "Gráfico 2. Ranking de precios de venta", 
          subtitle = "Precio promedio por metro cuadrado por comuna y tipo de propiedad en la Ciudad de Buenos Aires",
          x = "Comuna",
          y = "Precio promedio (USD) por m2",
@@ -180,12 +189,16 @@ grafico_4 <- ggplot() +
 ```
 
 ```{r, fig.width=10, fig.height=10}
-(grafico_1 / grafico_3)
+(grafico_1 / grafico_2)
 ```
 
 ```{r, fig.width=10, fig.height=10}
-(grafico_2 / grafico_4)
+(grafico_3 / grafico_4)
 ```
+# 2.2. Mapas de precios.
+
+En este apartado, utilizaremos mapas de calor para ilustrar el precio de la oferta de viviendas en venta por barrio y por comuna, agrupando y resumiendo las observaciones realizadas en el punto anterior. 
+
 ```{r}
 precios_por_barrio <- properati_2021 %>% 
                       filter(tipo_operacion=="Venta") %>% 
@@ -203,8 +216,7 @@ precios_por_barrio <- left_join(barrios_CABA, precios_por_barrio,
 ggplot()+
   geom_sf(data=precios_por_barrio, mapping=aes(fill=precio_m2), color=NA) +
   geom_sf(data=comunas_CABA, color="white", fill=NA) +
-    labs(title = "Mapa 1. El mapa de los precios de la Ciudad",
-         subtitle = "Precio promedio del m2 por barrio",
+    labs(title = "Mapa 1. Precio promedio del m2 por barrio",
          fill = "Precio promedio (U$D/m2)",
          caption= "Fuente: Properati 2021") +
   scale_fill_distiller(palette = "Spectral") +
@@ -228,10 +240,9 @@ precios_por_comuna <- comunas_CABA %>%
 ggplot(data=precios_por_comuna_resumen)+
   geom_sf(mapping=aes(fill=precio_m2), color="white") +
   geom_sf_label(mapping=aes(label=precio), fill="grey90", color="grey30", size=2) +
-    labs(title = "Mapa 2. El mapa de los precios de la Ciudad",
-         subtitle = "Precio promedio y precio promedio del m2 por comuna",
+    labs(title = "Mapa 2. Precio promedio y precio promedio del m2 por comuna",
          fill = "Precio promedio (U$D/m2)",
-         caption= "Fuente: Properati 2021") +
+         caption= "Fuente: Properati 2021. En las etiquetas se muestra el precio promedio para la Comuna.") +
   scale_fill_distiller(palette = "Spectral") +
   theme_void() + 
   theme(plot.title = element_text(face="bold", size=15))
@@ -241,8 +252,7 @@ ggplot(data=precios_por_comuna_resumen)+
 ```{r, fig.width=15, fig.height=7}
 ggplot()+
   geom_sf(data=precios_por_comuna, mapping=aes(fill=precio_m2), color="white") +
-    labs(title = "Mapa 3. El mapa de los precios de la Ciudad",
-         subtitle = "Precio promedio del m2 por comuna segun tipo de propiedad",
+    labs(title = "Mapa 3. Precio promedio del m2 por comuna segun tipo de propiedad",
          fill = "Precio promedio (U$D/m2)",
          caption= "Fuente: Properati 2021") +
   scale_fill_distiller(palette = "Spectral") +
@@ -251,7 +261,43 @@ ggplot()+
   facet_wrap(~tipo_propiedad)
 ```
 
-```{r}
+# 2.3. Infraestructuras y equipamientos
 
+Ahora buscaremos encontrar la relación entre el mapa de precios de la ciudad y su cercanía con equipamientos e infraestructuras urbanas.
+
+# 2.3.a. Accesibilidad.
+
+```{r}
+CABA <- barrios_CABA %>% 
+        st_union () %>% 
+        st_as_sf (crs=4326)
+```
+```{r}
+estaciones_subte <- read_sf("data/subte_estaciones.geojson")
+lineas_subte <- read_sf("data/subte_lineas.geojson")
+recorrido_metrobus <- read_sf("data/recorrido-de-metrobus.geojson") %>% 
+                                st_intersection(CABA)
+recorrido_ferrocarril <- read_sf("data/red-de-ferrocarril.geojson") %>% 
+                                st_intersection(CABA)
+estaciones_ferrocarril <- read_sf("data/estaciones-de-ferrocarril.geojson") %>% 
+                                st_intersection(CABA)
 ```
 
+
+```{r}
+ggplot() + 
+  geom_sf (data=precios_por_comuna_resumen, aes(fill=precio_m2), color=NA) +
+ labs(title = "Mapa 3.Precio, localización y transporte",
+         subtitle = "La importancia de la localización en el precio de los inmuebles de la CABA",
+         fill = "Precio promedio (U$D/m2)",
+         caption= "Fuente: Properati - 2021") +
+  scale_fill_distiller(palette = "Spectral") +
+  geom_sf(data=recorrido_metrobus, color= "bisque4", size=1, alpha=0.2) +
+  geom_sf(data=recorrido_ferrocarril, color= "bisque4") +
+  geom_sf(data=estaciones_ferrocarril, color= "bisque4", size=1) +
+  geom_sf(data=lineas_subte, color="grey10")+
+  geom_sf(data=estaciones_subte, color="grey10", size=1) +
+  theme_void() + 
+  theme(plot.title = element_text(face="bold", size=15))
+```
+Con el recorrido del subte, vemos que existe una correlación entre la conectividad que brinda el servicio y el precio de los inmuebles en las comunas. Sin embargo, cuando vemos el metrobus y el ferrocarril (que son medios de transporte cuya efectividad suele ser peor) la conectividad es más amplia.
