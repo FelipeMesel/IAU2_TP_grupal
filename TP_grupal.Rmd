@@ -18,6 +18,8 @@ library(ggmap)
 library(sf)
 library(leaflet)
 library(patchwork)
+devtools::install_github("rstudio/fontawesome")
+library(fontawesome)
 ```
 
 # 1. Importación y procesamiento de datos
@@ -98,7 +100,7 @@ properati_2021_pm_comuna_resumen <- properati_2021 %>%
 ## 2.1. Oferta de inmuebles en venta y en alquiler
 
 En este apartado analizamos la oferta de inmuebles en venta y en alquiler. En particular, la correlación entre precio y superficie en la oferta de inmuebles en venta y en alquiler en la Ciudad de Buenos Aires y las diferencias de precios por Comuna según tipo de propiedad ofrecida. 
-Para ello, comenzaremos por visualizar nuestros datos con  **gráficos de distribución** con regresión lineal, **gráficos de barras** y **mapas de densidad**.  
+Para ello, comenzaremos por visualizar nuestros datos con  **gráficos de distribución** con regresión lineal y **gráficos de barras**.  
 
 ### i) inmuebles en venta
 
@@ -312,39 +314,49 @@ Con el recorrido del subte, vemos que existe una correlación entre la conectivi
 ### ii) Equipamiento de salud y educación
 
 ```{r}
-#AGREGAR BARRIO EN HOSPITALES Y FILTRAR TODO POR PUERTO MADERO Y LUGANO
-
 hospitales <- read_sf("data/hospitales.geojson")%>%
-              select(NOMBRE, TIPO, DOM_NORMA)%>%
-              clean_names()
+              select(NOMBRE, TIPO, DOM_NORMA)
+
+hospitales <- hospitales %>%
+              st_join(barrios_CABA) %>% 
+              clean_names() %>% 
+              filter(comuna == "8" | comuna == "14" | comuna == "1")
 
 hospitales <- hospitales %>%
               mutate(lon = as.numeric(st_coordinates(hospitales$geometry)[,1]),
                      lat = as.numeric(st_coordinates(hospitales$geometry)[,2]))
 
 cesacs <- read_sf("data/centros_de_salud_nivel_1_BADATA_WGS84.geojson") %>% 
-          select(nombre, direccion_, barrio) 
+          select(nombre, direccion_, barrio, comuna) %>% 
+          filter(comuna == "8" | comuna == "14" | comuna == "1")
 
 cesacs <- cesacs %>% 
           mutate(lon = as.numeric(st_coordinates(cesacs$geometry)[,1]),
                  lat = as.numeric(st_coordinates(cesacs$geometry)[,2]))
 
 establecimientos_educativos <- read_sf("data/establecimientos_educativos.geojson") %>% 
-                               select(nombre_est, nivel=nivelmodal, dom_edific, barrio)
+                               select(nombre_est, nivel=nivelmodal, dom_edific, comuna, barrio) %>% 
+                               filter(comuna == "8" | comuna == "14" | comuna == "1" & nombre_est != "Centro de Formación Profesional - Cetic (Centro de Estudios Técnicos de la Industria de la Confección)")  #sacamos un establecimiento que identificamos tiene mal su geometría
 
-#BUSCAR OBSERVACIONES CON ERRORES EN LA GEOMETRIA
+
 
 establecimientos_educativos <- establecimientos_educativos %>% 
-      mutate(lon = as.numeric(st_coordinates(establecimientos_educativos$geometry)[,1]),
-             lat = as.numeric(st_coordinates(establecimientos_educativos$geometry)[,2]))
+                               mutate(lon = as.numeric(st_coordinates(establecimientos_educativos$geometry)[,1]),
+                                      lat = as.numeric(st_coordinates(establecimientos_educativos$geometry)[,2]))
 
 universidades <- read.csv("data/universidades.csv", encoding = "UTF-8") %>% 
-                 select(universida, direccion_norm, barrio, long, lat) %>% 
-                 unique()
+                 select(universida, direccion_norm, comuna, barrio, long, lat) %>% 
+                 unique() %>% 
+                 filter(comuna == "Comuna 8" | comuna == "Comuna 14" | comuna == "Comuna 1") 
 
 ```
 
 ```{r}
+
+clinic_medical = makeAwesomeIcon(text = fa("clinic-medical"))
+school = makeAwesomeIcon(text = fa("school"))
+university = makeAwesomeIcon(text = fa("university"))
+
 icons_univ <- awesomeIcons(icon= "school",
                       iconColor = "black",
                       library = "ion",
@@ -364,7 +376,9 @@ icons_cesac <- awesomeIcons(icon = "clinic-medical",
                       iconColor = "black",
                       library = "fa",
                       markerColor = "lightblue")
+```
 
+```{r}
 leaflet() %>%
   addTiles() %>%
   addProviderTiles(providers$CartoDB) %>%
